@@ -1,0 +1,61 @@
+# =============================================================================
+# .gitignore for a C++ Makefile project
+# =============================================================================
+
+# --- Build artifacts ---
+# 忽略由 Makefile 或編譯器產生的所有檔案和目錄。
+
+# 忽略存放中介物件檔 (.o) 的整個目錄
+# 加上斜線 "/" 表示只忽略目錄，不忽略同名檔案
+obj/
+
+# 忽略最終產生的可執行檔
+# 請將 "floorplanner" 換成您 Makefile 中設定的 EXEC 名稱
+floorplanner
+
+# 忽略其他可能的編譯產物，以防萬一
+*.o
+*.a
+*.so
+*.dll
+*.exe
+
+
+# --- Program output files ---
+# 忽略執行程式後產生的日誌檔和結果檔。
+
+# 忽略 CSV 或 TXT 格式的日誌檔
+*.csv
+*.log
+
+# 忽略產生的結果檔。
+# 為了避免誤刪 MCNC 的輸入檔 (*.block)，這裡建議使用更精確的模式。
+# 例如，如果您產生的檔案都叫 xxx_output.block，可以使用下面的模式。
+# *_output.block
+# 或者，如果您都把結果檔放在一個 output/ 目錄下，可以忽略整個目錄：
+# output/
+
+
+# --- Editor & OS specific files ---
+# 忽略由程式碼編輯器或作業系統自動產生的設定檔和暫存檔。
+
+# Visual Studio Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# JetBrains CLion
+.idea/
+
+# 各種編輯器的暫存檔或備份檔
+*~
+*.swp
+*.swo
+.#*
+
+
+# --- Other ---
+
+# 忽略 crash dump 檔案 (Linux)
+core
