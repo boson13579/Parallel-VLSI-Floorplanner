@@ -7,7 +7,7 @@
 // 存放區塊的單一尺寸選項
 struct Dimension {
     double width, height;
-    int col_multiple, row_multiple;
+    int col_multiple, row_multiple; //not used
 };
 
 // 代表一個待放置的模組
