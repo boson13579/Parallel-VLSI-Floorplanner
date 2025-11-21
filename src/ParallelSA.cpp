@@ -89,6 +89,8 @@ Floorplan ParallelSA::run_multi_start_coarse() {
             // 單一 SA 流程的內部迴圈
             while (T > sa_params.T_min && std::chrono::high_resolution_clock::now() - start_time < time_limit) {
                 for (int i = 0; i < steps_per_temp; ++i) {
+                    // SA move 嘗試次數統計
+                    ++moves_total;
                     Floorplan next_fp = current_fp;
                     next_fp.perturb(rng);
                     next_fp.pack();
@@ -96,6 +98,7 @@ Floorplan ParallelSA::run_multi_start_coarse() {
                     double delta = next_fp.cost - current_fp.cost;
                     // Metropolis 準則：接受更好的解，或按機率接受較差的解
                     if (delta < 0 || (exp(-delta / T) > std::uniform_real_distribution<>(0.0, 1.0)(rng))) {
+                        ++moves_accepted;
                         current_fp = next_fp;
                         if (current_fp.cost < best_in_run.cost) {
                             best_in_run = current_fp;
@@ -174,12 +177,14 @@ Floorplan ParallelSA::run_parallel_tempering_medium() {
         while (std::chrono::high_resolution_clock::now() - start_time < time_limit) {
             // 步驟 1：每個執行緒在自己的溫度下，獨立進行 SA 計算
             for (int i = 0; i < steps_per_swap; ++i) {
+                ++moves_total;
                 Floorplan next_fp = replicas[tid];
                 next_fp.perturb(rng);
                 next_fp.pack();
                 next_fp.calculate_cost();
                 double delta = next_fp.cost - replicas[tid].cost;
                 if (delta < 0 || (exp(-delta / temperatures[tid]) > std::uniform_real_distribution<>(0, 1)(rng))) {
+                    ++moves_accepted;
                     replicas[tid] = next_fp;
                 }
             }
@@ -272,7 +277,9 @@ Floorplan ParallelSA::run_parallel_moves_fine() {
 
                     // 使用 Metropolis 準則來決定是否接受這個最好的候選解
                     double delta = best_candidate.cost - current_fp.cost;
+                    ++moves_total;
                     if (delta < 0 || (exp(-delta / T) > std::uniform_real_distribution<>(0.0, 1.0)(rng))) {
+                        ++moves_accepted;
                         current_fp = best_candidate;
                         if (current_fp.cost < best_in_run.cost) {
                             best_in_run = current_fp;

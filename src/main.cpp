@@ -25,10 +25,7 @@ int main(int argc, char* argv[]) {
     base_fp.read_blocks(input_file);
 
     // 3. 設定執行時間限制
-    const auto time_limit = std::chrono::seconds(595); // 設定接近 10 分鐘的時間限制
-
-    // 4. 指定日誌檔名
-    std::string log_filename = "convergence_log.csv";
+    const auto time_limit = std::chrono::seconds(180); // 設定接近 10 分鐘的時間限制
 
     // =======================================================================
     // --- 策略與超參數設定 ---
@@ -55,7 +52,30 @@ int main(int argc, char* argv[]) {
         params = {1e6, 1e-2, 0.995, 0.5};
     }
 
-    // 5. 建立平行化 SA 執行器，並傳入日誌檔名和超參數
+    // 4. 解析 testcase 名稱（去掉路徑）
+    std::string testcase_name = input_file;
+    auto pos_slash = testcase_name.find_last_of("/\\");
+    if (pos_slash != std::string::npos) testcase_name = testcase_name.substr(pos_slash + 1);
+
+    // 5. 取得人類可讀的 run 開始時間字串，作為檔名與 CSV 欄位
+    auto now_sys = std::chrono::system_clock::now();
+    std::time_t tt = std::chrono::system_clock::to_time_t(now_sys);
+    std::tm* tm_info = std::localtime(&tt);
+    char time_buf[32];
+    std::strftime(time_buf, sizeof(time_buf), "%Y%m%d_%H%M%S", tm_info);
+    std::string run_time_str(time_buf);
+
+    // 6. 策略字串表示（給 log 檔名與 metrics 用）
+    std::string strategy_str;
+    if (strategy == ParallelizationStrategy::MultiStart_Coarse) strategy_str = "MultiStart_Coarse";
+    else if (strategy == ParallelizationStrategy::ParallelTempering_Medium) strategy_str = "ParallelTempering_Medium";
+    else strategy_str = "ParallelMoves_Fine";
+
+    const std::string log_dir = "logs";
+
+    std::string log_filename = log_dir + "/convergence_parallel_" + strategy_str + "_" + testcase_name + "_" + run_time_str + ".csv";
+
+    // 8. 建立平行化 SA 執行器，並傳入收斂日誌檔名和超參數
     ParallelSA sa_runner(base_fp, time_limit, log_filename, params);
     Floorplan final_best_fp;
     
@@ -83,11 +103,52 @@ int main(int argc, char* argv[]) {
               << ", steps_factor=" << params.steps_per_temp_factor << std::endl;
     std::cout << "----------------------------------------------------------\n";
     
-    // 6. 執行所選的策略
+    // 6. 執行所選的策略並量測整體 wall-clock 時間
+    auto wall_start = std::chrono::high_resolution_clock::now();
     final_best_fp = sa_runner.run(strategy);
+    auto wall_end = std::chrono::high_resolution_clock::now();
+    double wall_seconds = std::chrono::duration<double>(wall_end - wall_start).count();
 
     // 7. 輸出最終結果
     print_and_write_results(final_best_fp, output_file);
+
+    // 8. 將 SA 行為統計摘要寫入 log 檔案（而非終端機），方便後續在 Linux 上批次分析
+    long long moves_total = sa_runner.get_moves_total();
+    long long moves_accepted = sa_runner.get_moves_accepted();
+    double accept_ratio = (moves_total > 0) ? static_cast<double>(moves_accepted) / moves_total : 0.0;
+
+    // 建立 summary 檔案路徑（目錄已在前面建立）
+    std::string summary_path = log_dir + "/sa_summary.txt";
+    std::ofstream summary_file(summary_path, std::ios::app);
+    if (summary_file.is_open()) {
+        summary_file << "[SA Summary] strategy=";
+        if (strategy == ParallelizationStrategy::MultiStart_Coarse) summary_file << "MultiStart_Coarse";
+        else if (strategy == ParallelizationStrategy::ParallelTempering_Medium) summary_file << "ParallelTempering_Medium";
+        else summary_file << "ParallelMoves_Fine";
+
+        summary_file << ", threads=" << omp_get_max_threads()
+                     << ", wall_time_s=" << wall_seconds
+                     << ", moves_total=" << moves_total
+                     << ", moves_accepted=" << moves_accepted
+                     << ", accept_ratio=" << accept_ratio
+                     << '\n';
+    }
+         // 8. 將 SA 行為統計 + layout metrics 結果寫入 CSV
+         // metrics CSV：檔名包含 SA 方法 + 測資名 + 時間戳
+         std::string metrics_filename = log_dir + "/metrics_parallel_" + strategy_str + "_" + testcase_name + "_" + run_time_str + ".csv";
+         std::ofstream metrics_file(metrics_filename);
+        if (metrics_file.is_open()) {
+            metrics_file << "mode,strategy,testcase,threads,run_start,wall_time_s,"
+                          << "best_cost,chip_area,chip_width,chip_height,inl,"
+                          << "moves_total,moves_accepted,accept_ratio\n";
+
+            metrics_file << "parallel," << strategy_str << "," << testcase_name << "," << omp_get_max_threads() << ","
+                          << run_time_str << "," << wall_seconds << ","
+                          << final_best_fp.cost << "," << final_best_fp.chip_area << ","
+                          << final_best_fp.chip_width << "," << final_best_fp.chip_height << ","
+                          << final_best_fp.inl << ","
+                          << moves_total << "," << moves_accepted << "," << accept_ratio << "\n";
+        }
 
     return 0;
 }

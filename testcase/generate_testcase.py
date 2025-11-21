@@ -124,7 +124,7 @@ def generate_test_case(
 # --- 主程式：如何使用 ---
 if __name__ == "__main__":
     # 產生一個小型的測試案例 (30個區塊)
-    generate_test_case("testcase_small.block", num_blocks=15)
+    generate_test_case("testcase_small.block", num_blocks=6)
 
     # 產生一個中型的測試案例 (100個區塊)
     generate_test_case("testcase_medium.block", num_blocks=100)

@@ -8,52 +8,55 @@
 #include <random>
 #include <fstream>
 
-// [·s¼W] «Ø¥ß¤@­Óµ²ºcÅé¨Ó«Ê¸Ë©Ò¦³ SA ¶W°Ñ¼Æ
+// [æ–°å¢] å»ºç«‹ä¸€å€‹çµæ§‹é«”ä¾†å°è£æ‰€æœ‰ SA è¶…åƒæ•¸
 struct SA_Hyperparameters {
-    double T_start;                // ªì©l·Å«×
-    double T_min;                  // µ²§ô·Å«×
-    double cooling_rate;           // ­°·Å³t²v
-    double steps_per_temp_factor;  // ¨C·Å¼h¨B¼Æ = ¦¹¦]¤l * °Ï¶ô¼Æ
+    double T_start;                // åˆå§‹æº«åº¦
+    double T_min;                  // çµæŸæº«åº¦
+    double cooling_rate;           // é™æº«é€Ÿç‡
+    double steps_per_temp_factor;  // æ¯æº«å±¤æ­¥æ•¸ = æ­¤å› å­ * å€å¡Šæ•¸
 };
 
-// ¨Ï¥Î±j«¬§Oªº enum (enum class) ¨Ó©w¸q¤£¦Pªº¥­¦æ¤Æµ¦²¤¡A
-// ³o¼Ë¥i¥H¼W¥[µ{¦¡½Xªº¥iÅª©Ê©M«¬§O¦w¥ş¡C
+// ä½¿ç”¨å¼·å‹åˆ¥çš„ enum (enum class) ä¾†å®šç¾©ä¸åŒçš„å¹³è¡ŒåŒ–ç­–ç•¥ï¼Œ
+// é€™æ¨£å¯ä»¥å¢åŠ ç¨‹å¼ç¢¼çš„å¯è®€æ€§å’Œå‹åˆ¥å®‰å…¨ã€‚
 enum class ParallelizationStrategy {
-    MultiStart_Coarse,      // µ¦²¤¤@¡G¦h°_©lÂI¥­¦æ·j´M (²Ê²É«×)
-    ParallelTempering_Medium, // µ¦²¤¤G¡G¥­¦æ¦^¤õ/½Æ¥»¥æ´« (¤¤²É«×)
-    ParallelMoves_Fine        // µ¦²¤¤T¡G¥­¦æ²¾°Ê¥Í¦¨ (²Ó²É«×)
+    MultiStart_Coarse,      // ç­–ç•¥ä¸€ï¼šå¤šèµ·å§‹é»å¹³è¡Œæœå°‹ (ç²—ç²’åº¦)
+    ParallelTempering_Medium, // ç­–ç•¥äºŒï¼šå¹³è¡Œå›ç«/è¤‡æœ¬äº¤æ› (ä¸­ç²’åº¦)
+    ParallelMoves_Fine        // ç­–ç•¥ä¸‰ï¼šå¹³è¡Œç§»å‹•ç”Ÿæˆ (ç´°ç²’åº¦)
 };
 
 class ParallelSA {
 public:
-    // --- ¤½¦@¦¨­û¨ç¦¡ (Public Interface) ---
+    // --- å…¬å…±æˆå“¡å‡½å¼ (Public Interface) ---
 
     /**
-     * @brief «Øºc¨ç¦¡ (Constructor)
-     * @param base_fp ¥]§tªì©l°Ï¶ô¸ê®Æªº Floorplan ª«¥ó¡A§@¬°°ßÅªªº°òÂ¦½d¥»¡C
-     * @param time_limit ¾ã­Ó³Ì¨Î¤Æ¹Lµ{ªºÁ`®É¶¡­­¨î¡C
-     * @param log_filename ¥Î©ó°O¿ı¦¬ÀÄ¹Lµ{ªº¤é»xÀÉ¦W¡C
-     * @param params [­×§ï] ¶Ç¤J SA ¶W°Ñ¼Æ³]©w¡C
+     * @brief å»ºæ§‹å‡½å¼ (Constructor)
+     * @param base_fp åŒ…å«åˆå§‹å€å¡Šè³‡æ–™çš„ Floorplan ç‰©ä»¶ï¼Œä½œç‚ºå”¯è®€çš„åŸºç¤ç¯„æœ¬ã€‚
+     * @param time_limit æ•´å€‹æœ€ä½³åŒ–éç¨‹çš„ç¸½æ™‚é–“é™åˆ¶ã€‚
+     * @param log_filename ç”¨æ–¼è¨˜éŒ„æ”¶æ–‚éç¨‹çš„æ—¥èªŒæª”åã€‚
+     * @param params [ä¿®æ”¹] å‚³å…¥ SA è¶…åƒæ•¸è¨­å®šã€‚
      */
     ParallelSA(const Floorplan& base_fp, const std::chrono::seconds& time_limit, const std::string& log_filename, const SA_Hyperparameters& params);
     
     /**
-     * @brief ¸Ñºc¨ç¦¡ (Destructor)
-     *        ½T«O¤é»xÀÉ®×¦bª«¥ó¾P·´®É³Q¥¿½TÃö³¬¡C
+     * @brief è§£æ§‹å‡½å¼ (Destructor)
+     *        ç¢ºä¿æ—¥èªŒæª”æ¡ˆåœ¨ç‰©ä»¶éŠ·æ¯€æ™‚è¢«æ­£ç¢ºé—œé–‰ã€‚
      */
     ~ParallelSA();
 
     /**
-     * @brief ¥D°õ¦æ¨ç¦¡¡C
-     *        ®Ú¾Ú¶Ç¤Jªºµ¦²¤°Ñ¼Æ¡A©I¥s¹ïÀ³ªº¥­¦æ¤Æºtºâªk¹ê§@¡C
-     * @param strategy ­n¨Ï¥Îªº¥­¦æ¤Æµ¦²¤ (¨Ó¦Û ParallelizationStrategy enum)¡C
-     * @return ¸g¹L³Ì¨Î¤Æ«á§ä¨ìªº³Ì¨Î Floorplan ª«¥ó¡C
+     * @brief ä¸»åŸ·è¡Œå‡½å¼ã€‚
+     *        æ ¹æ“šå‚³å…¥çš„ç­–ç•¥åƒæ•¸ï¼Œå‘¼å«å°æ‡‰çš„å¹³è¡ŒåŒ–æ¼”ç®—æ³•å¯¦ä½œã€‚
+     * @param strategy è¦ä½¿ç”¨çš„å¹³è¡ŒåŒ–ç­–ç•¥ (ä¾†è‡ª ParallelizationStrategy enum)ã€‚
+     * @return ç¶“éæœ€ä½³åŒ–å¾Œæ‰¾åˆ°çš„æœ€ä½³ Floorplan ç‰©ä»¶ã€‚
      */
     Floorplan run(ParallelizationStrategy strategy);
 
+    long long get_moves_total() const { return moves_total; }
+    long long get_moves_accepted() const { return moves_accepted; }
+
 private:
-    // --- ¨p¦³¦¨­û¨ç¦¡ (Private Implementations) ---
-    // ¨C­Ó¨ç¦¡³£§¹¾ã¦a¹ê§@¤@ºØ¥­¦æ¤Æµ¦²¤¡C
+    // --- ç§æœ‰æˆå“¡å‡½å¼ (Private Implementations) ---
+    // æ¯å€‹å‡½å¼éƒ½å®Œæ•´åœ°å¯¦ä½œä¸€ç¨®å¹³è¡ŒåŒ–ç­–ç•¥ã€‚
 
 
     Floorplan run_multi_start_coarse();
@@ -61,20 +64,23 @@ private:
     Floorplan run_parallel_moves_fine();
 
     /**
-     * @brief °O¿ı¤@­Ó·sªº³Ì¨Î¸Ñ¨ì¤é»xÀÉ¡C
-     * @param cost ­n°O¿ıªº¦¨¥»¡C
+     * @brief è¨˜éŒ„ä¸€å€‹æ–°çš„æœ€ä½³è§£åˆ°æ—¥èªŒæª”ã€‚
+     * @param cost è¦è¨˜éŒ„çš„æˆæœ¬ã€‚
      */
     void log_new_best(double cost);
 
-    // --- ¨p¦³¦¨­ûÅÜ¼Æ (Private Member Variables) ---
+    // --- ç§æœ‰æˆå“¡è®Šæ•¸ (Private Member Variables) ---
 
-    Floorplan base_fp;          // Àx¦s±qÀÉ®×Åª¨úªº°ßÅª°Ï¶ô¸ê®Æ¡C
-    Floorplan global_best_fp;   // ¦b©Ò¦³°õ¦æºü©M©Ò¦³°õ¦æ¹Lµ{¤¤§ä¨ìªº¥ş°ì³Ì¨Î¸Ñ¡C
-    std::chrono::seconds time_limit; // Á`°õ¦æ®É¶¡­­¨î¡C
-    std::chrono::high_resolution_clock::time_point start_time; // °O¿ıºtºâªk¶}©lªººë½T®É¶¡ÂI¡C
-    std::ofstream log_file; // ¤é»xÀÉ®×ªºÀÉ®×¬yª«¥ó¡C
-    
-    SA_Hyperparameters sa_params; // Àx¦s¶Ç¤Jªº¶W°Ñ¼Æ
+    Floorplan base_fp;          // å„²å­˜å¾æª”æ¡ˆè®€å–çš„å”¯è®€å€å¡Šè³‡æ–™ã€‚
+    Floorplan global_best_fp;   // åœ¨æ‰€æœ‰åŸ·è¡Œç·’å’Œæ‰€æœ‰åŸ·è¡Œéç¨‹ä¸­æ‰¾åˆ°çš„å…¨åŸŸæœ€ä½³è§£ã€‚
+    std::chrono::seconds time_limit; // ç¸½åŸ·è¡Œæ™‚é–“é™åˆ¶ã€‚
+    std::chrono::high_resolution_clock::time_point start_time; // è¨˜éŒ„æ¼”ç®—æ³•é–‹å§‹çš„ç²¾ç¢ºæ™‚é–“é»ã€‚
+    std::ofstream log_file; // æ—¥èªŒæª”æ¡ˆçš„æª”æ¡ˆæµç‰©ä»¶ã€‚
+
+    SA_Hyperparameters sa_params; // å„²å­˜å‚³å…¥çš„è¶…åƒæ•¸
+
+    long long moves_total = 0;
+    long long moves_accepted = 0;
 };
 
 #endif // PARALLEL_SA_H

@@ -29,26 +29,26 @@ all: $(EXEC)
 
 # --- Linking Target ---
 $(EXEC): $(OBJECTS)
-	@echo "�쵲�i������..."
+	@echo "鏈結可執行檔..."
 	$(CXX) $^ -o $@ $(LDFLAGS)
-	@echo "�ظm�����C�i�����ɬ� '$(EXEC)'."
+	@echo "建置完成。可執行檔為 '$(EXEC)'."
 
 # --- Compilation Target ---
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(OBJDIR)
-	@echo "�sĶ $<..."
+	@echo "編譯 $<..."
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # --- Clean Target ---
 clean:
-	@echo "���b�M�z..."
+	@echo "正在清理..."
 	rm -rf $(OBJDIR) $(EXEC)
-	@echo "�M�z�����C"
+	@echo "清理完成。"
 
 # --- Phony Targets ---
 .PHONY: all clean
 
 # --- Include Dependencies ---
-# �ޤJ�Ҧ� .d �̿����Y�ɮסC
-# -include ���O�|�������s�b���ɮסA�o�b�Ĥ@���ظm�ɫܦ��ΡC
+# 引入所有 .d 依賴關係檔案。
+# -include 指令會忽略不存在的檔案，這在第一次建置時很有用。
 -include $(DEPS)

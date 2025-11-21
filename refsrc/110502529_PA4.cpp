@@ -550,10 +550,34 @@ void parse_arguments(int argc, char* argv[], string& input_file, string& output_
  * @param time_limit The total time allowed for the optimization.
  * @return The Floorplan object representing the best solution found.
  */
-Floorplan run_simulated_annealing(const Floorplan& base_fp, const chrono::seconds& time_limit) {
+Floorplan run_simulated_annealing(const Floorplan& base_fp,
+                                  const chrono::seconds& time_limit,
+                                  const std::string& testcase_name_for_log) {
     Floorplan global_best_fp;  // Stores the best solution found across all runs.
     auto start_time = chrono::high_resolution_clock::now();
     int run_count = 0;
+
+    // --- SA 行為統計 ---
+    long long moves_total = 0;
+    long long moves_accepted = 0;
+
+    // 簡單的收斂日誌（單執行緒 baseline 版），格式與平行版相容
+    // 檔名包含 testcase 與時間戳，放在 logs/ 底下
+    const string log_dir = "logs";
+    string testcase_name = testcase_name_for_log;
+    auto now_sys = chrono::system_clock::now();
+    time_t tt0 = chrono::system_clock::to_time_t(now_sys);
+    tm* tm_info0 = localtime(&tt0);
+    char time_buf0[32];
+    strftime(time_buf0, sizeof(time_buf0), "%Y%m%d_%H%M%S", tm_info0);
+    string run_time_str0(time_buf0);
+
+    string conv_filename =
+        log_dir + "/convergence_baseline_" + testcase_name + "_" + run_time_str0 + ".csv";
+    ofstream log_file(conv_filename);
+    if (log_file.is_open()) {
+        log_file << "Timestamp(s),BestCost\n";
+    }
 
     // Adaptively set SA hyperparameters based on problem size N.
     const int N = base_fp.blocks.size();
@@ -592,6 +616,7 @@ Floorplan run_simulated_annealing(const Floorplan& base_fp, const chrono::second
         // Inner SA loop for a single run.
         while (T > T_min && chrono::high_resolution_clock::now() - start_time < time_limit) {
             for (int i = 0; i < steps_per_temp; ++i) {
+                ++moves_total;
                 Floorplan next_fp = current_fp;
                 next_fp.perturb();
                 next_fp.pack();
@@ -599,6 +624,7 @@ Floorplan run_simulated_annealing(const Floorplan& base_fp, const chrono::second
                 double delta = next_fp.cost - current_fp.cost;
                 // Metropolis criterion: accept worse solutions with a certain probability.
                 if (delta < 0 || (exp(-delta / T) > uniform_real_distribution<>(0.0, 1.0)(rng))) {
+                    ++moves_accepted;
                     current_fp = next_fp;
                     if (current_fp.cost < best_fp_this_run.cost) best_fp_this_run = current_fp;
                 }
@@ -611,8 +637,50 @@ Floorplan run_simulated_annealing(const Floorplan& base_fp, const chrono::second
             global_best_fp = best_fp_this_run;
             cout << "Run " << run_count << ", New Global Best Cost: " << global_best_fp.cost
                  << ", Area: " << global_best_fp.chip_area << endl;
+
+            // 若有開啟 baseline 收斂 CSV，就記錄 best cost vs time
+            if (log_file.is_open()) {
+                auto now = chrono::high_resolution_clock::now();
+                double timestamp = chrono::duration<double>(now - start_time).count();
+                log_file << fixed << setprecision(4) << timestamp << ","
+                         << fixed << setprecision(6) << global_best_fp.cost << '\n';
+            }
         }
     }
+
+    if (log_file.is_open()) log_file.close();
+
+    // 將 baseline SA 統計 + layout metrics 寫入 CSV（與平行版同 schema）
+    double accept_ratio = (moves_total > 0) ? static_cast<double>(moves_accepted) / moves_total : 0.0;
+
+    // 重新取得時間字串當作 metrics 檔的 run_start
+    auto now_sys_metrics = chrono::system_clock::now();
+    time_t tt = chrono::system_clock::to_time_t(now_sys_metrics);
+    tm* tm_info = localtime(&tt);
+    char time_buf[32];
+    strftime(time_buf, sizeof(time_buf), "%Y%m%d_%H%M%S", tm_info);
+    string run_time_str(time_buf);
+
+    // baseline metrics CSV：檔名包含 baseline + 測資名 + 時間戳
+    string metrics_filename =
+        log_dir + "/metrics_baseline_" + testcase_name + "_" + run_time_str + ".csv";
+    ofstream metrics_file(metrics_filename);
+    if (metrics_file.is_open()) {
+        metrics_file << "mode,strategy,testcase,threads,run_start,wall_time_s,"
+                     << "best_cost,chip_area,chip_width,chip_height,inl,"
+                     << "moves_total,moves_accepted,accept_ratio\n";
+
+        double wall_seconds =
+            chrono::duration<double>(chrono::high_resolution_clock::now() - start_time).count();
+
+        metrics_file << "baseline,SingleThread," << testcase_name << ",1,"
+                     << run_time_str << "," << wall_seconds << ","
+                     << global_best_fp.cost << "," << global_best_fp.chip_area << ","
+                     << global_best_fp.chip_width << "," << global_best_fp.chip_height << ","
+                     << global_best_fp.inl << ","
+                     << moves_total << "," << moves_accepted << "," << accept_ratio << "\n";
+    }
+
     return global_best_fp;
 }
 
@@ -655,8 +723,14 @@ int main(int argc, char* argv[]) {
     Floorplan base_fp;
     base_fp.read_blocks(input_file);
 
-    const auto time_limit = chrono::seconds(595);  // Set time limit (e.g., 595s for a 10-min limit)
-    Floorplan global_best_fp = run_simulated_annealing(base_fp, time_limit);
+    const auto time_limit = chrono::seconds(60);  // Set time limit (e.g., 595s for a 10-min limit)
+
+    // 解析測資檔名（去掉路徑），傳給 SA 做 metrics 檔名用
+    string testcase_name = input_file;
+    auto pos_slash = testcase_name.find_last_of("/\\");
+    if (pos_slash != string::npos) testcase_name = testcase_name.substr(pos_slash + 1);
+
+    Floorplan global_best_fp = run_simulated_annealing(base_fp, time_limit, testcase_name);
 
     print_and_write_results(global_best_fp, output_file);
 
