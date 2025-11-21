@@ -53,6 +53,7 @@ public:
 
     long long get_moves_total() const { return moves_total; }
     long long get_moves_accepted() const { return moves_accepted; }
+    long long get_sa_runs() const { return sa_runs; }
 
 private:
     // --- 私有成員函式 (Private Implementations) ---
@@ -81,6 +82,7 @@ private:
 
     long long moves_total = 0;
     long long moves_accepted = 0;
+    long long sa_runs = 0;
 };
 
 #endif // PARALLEL_SA_H

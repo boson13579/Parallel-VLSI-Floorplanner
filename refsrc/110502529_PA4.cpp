@@ -688,17 +688,18 @@ Floorplan run_simulated_annealing(const Floorplan& base_fp,
     if (metrics_file.is_open()) {
         metrics_file << "mode,strategy,testcase,threads,run_start,wall_time_s,"
                      << "best_cost,chip_area,chip_width,chip_height,inl,"
-                     << "moves_total,moves_accepted,accept_ratio\n";
+                     << "moves_total,moves_accepted,accept_ratio,sa_runs\n";
 
         double wall_seconds =
             chrono::duration<double>(chrono::high_resolution_clock::now() - start_time).count();
 
-        metrics_file << "baseline,SingleThread," << testcase_name << ",1,"
-                     << run_time_str << "," << wall_seconds << ","
-                     << global_best_fp.cost << "," << global_best_fp.chip_area << ","
-                     << global_best_fp.chip_width << "," << global_best_fp.chip_height << ","
-                     << global_best_fp.inl << ","
-                     << moves_total << "," << moves_accepted << "," << accept_ratio << "\n";
+    metrics_file << "baseline,SingleThread," << testcase_name << ",1,"
+             << run_time_str << "," << wall_seconds << ","
+             << global_best_fp.cost << "," << global_best_fp.chip_area << ","
+             << global_best_fp.chip_width << "," << global_best_fp.chip_height << ","
+             << global_best_fp.inl << ","
+             << moves_total << "," << moves_accepted << "," << accept_ratio << ","
+             << run_count << "\n";
     }
 
     return global_best_fp;

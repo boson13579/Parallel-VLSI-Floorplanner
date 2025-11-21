@@ -6,45 +6,48 @@
 #include <algorithm>
 #include <iomanip>
 
-// [­×§ï] «Øºc¨ç¦¡¡A±µ¦¬¨ÃÀx¦s¶W°Ñ¼Æ
+// [ä¿®æ”¹] å»ºæ§‹å‡½å¼ï¼Œæ¥æ”¶ä¸¦å„²å­˜è¶…åƒæ•¸
 ParallelSA::ParallelSA(const Floorplan& base_fp, const std::chrono::seconds& time_limit, const std::string& log_filename, const SA_Hyperparameters& params)
     : base_fp(base_fp), time_limit(time_limit), sa_params(params) {
-    // ªì©l¤Æ¥ş°ì³Ì¨Î¸Ñªº¦¨¥»¬°¤@­Ó·¥¤j­È
+    // åˆå§‹åŒ–å…¨åŸŸæœ€ä½³è§£çš„æˆæœ¬ç‚ºä¸€å€‹æ¥µå¤§å€¼
     global_best_fp.cost = 1e18;
 
-    // ¶}±Ò¤é»xÀÉ®×
+    // é–‹å•Ÿæ—¥èªŒæª”æ¡ˆ
     log_file.open(log_filename);
     if (log_file.is_open()) {
-        // ¼g¤J CSV ®æ¦¡ªº¼ĞÀY¡A¤è«K«áÄò¥Î Python ©Î Excel Ã¸¹Ï
+        // å¯«å…¥ CSV æ ¼å¼çš„æ¨™é ­ï¼Œæ–¹ä¾¿å¾ŒçºŒç”¨ Python æˆ– Excel ç¹ªåœ–
         log_file << "Timestamp(s),BestCost\n";
     } else {
-        std::cerr << "Äµ§i¡GµLªk¶}±Ò¤é»xÀÉ®× " << log_filename << std::endl;
+        std::cerr << "è­¦å‘Šï¼šç„¡æ³•é–‹å•Ÿæ—¥èªŒæª”æ¡ˆ " << log_filename << std::endl;
     }
 }
 
-// ¸Ñºc¨ç¦¡¡A½T«OÀÉ®×¦bµ{¦¡µ²§ô®É³Q¥¿±`Ãö³¬
+// è§£æ§‹å‡½å¼ï¼Œç¢ºä¿æª”æ¡ˆåœ¨ç¨‹å¼çµæŸæ™‚è¢«æ­£å¸¸é—œé–‰
 ParallelSA::~ParallelSA() {
     if (log_file.is_open()) {
         log_file.close();
     }
 }
 
-// ¶°¤¤³B²z¤é»x°O¿ıªº¨p¦³¨ç¦¡
+// é›†ä¸­è™•ç†æ—¥èªŒè¨˜éŒ„çš„ç§æœ‰å‡½å¼
 void ParallelSA::log_new_best(double cost) {
     if (log_file.is_open()) {
-        // ­pºâ±qºtºâªk¶}©l¨ì²{¦bªº°õ¦æ®É¶¡¡]³æ¦ì¡G¬í¡^
+        // è¨ˆç®—å¾æ¼”ç®—æ³•é–‹å§‹åˆ°ç¾åœ¨çš„åŸ·è¡Œæ™‚é–“ï¼ˆå–®ä½ï¼šç§’ï¼‰
         auto now = std::chrono::high_resolution_clock::now();
         double timestamp = std::chrono::duration<double>(now - start_time).count();
         
-        // ±N®É¶¡©M¦¨¥»¥H©T©w®æ¦¡¼g¤JÀÉ®×¡A¨Ã¥ß§Y¨ê·s½w½Ä°Ï¥H½T«O§Y®É¼g¤J
+        // å°‡æ™‚é–“å’Œæˆæœ¬ä»¥å›ºå®šæ ¼å¼å¯«å…¥æª”æ¡ˆï¼Œä¸¦ç«‹å³åˆ·æ–°ç·©è¡å€ä»¥ç¢ºä¿å³æ™‚å¯«å…¥
         log_file << std::fixed << std::setprecision(4) << timestamp << ","
                  << std::fixed << std::setprecision(6) << cost << std::endl;
     }
 }
 
-// ¥D run ¨ç¦¡¡A®Ú¾Ú¶Ç¤Jªºµ¦²¤¡A©I¥s¹ïÀ³ªº¨p¦³¹ê§@¨ç¦¡
+// ä¸» run å‡½å¼ï¼Œæ ¹æ“šå‚³å…¥çš„ç­–ç•¥ï¼Œå‘¼å«å°æ‡‰çš„ç§æœ‰å¯¦ä½œå‡½å¼
 Floorplan ParallelSA::run(ParallelizationStrategy strategy) {
     start_time = std::chrono::high_resolution_clock::now();
+    moves_total = 0;
+    moves_accepted = 0;
+    sa_runs = 0;
     
     switch (strategy) {
         case ParallelizationStrategy::MultiStart_Coarse:
@@ -54,27 +57,29 @@ Floorplan ParallelSA::run(ParallelizationStrategy strategy) {
         case ParallelizationStrategy::ParallelMoves_Fine:
             return run_parallel_moves_fine();
     }
-    return global_best_fp; // ²z½×¤W¤£À³°õ¦æ¨ì¦¹³B
+    return global_best_fp; // ç†è«–ä¸Šä¸æ‡‰åŸ·è¡Œåˆ°æ­¤è™•
 }
 
 // =============================================================================
-// ¤èªk¤@¡G¦h°_©lÂI¼ÒÀÀ°h¤õ (²Ê²É«× Task-Level Parallelism)
-// ´y­z¡G±Ò°Ê¦h­Ó°õ¦æºü¡A¨C­Ó°õ¦æºü¿W¥ß¡B§¹¾ã¦a°õ¦æ¤@¦¸¼ÒÀÀ°h¤õ¬yµ{¡C
-//       °õ¦æºü¤§¶¡µL³q°T¡A¶È¦b³Ì«á§ó·s¥ş°ì³Ì¨Î¸Ñ®É»İ­n¦P¨B¡C
+// æ–¹æ³•ä¸€ï¼šå¤šèµ·å§‹é»æ¨¡æ“¬é€€ç« (ç²—ç²’åº¦ Task-Level Parallelism)
+// æè¿°ï¼šå•Ÿå‹•å¤šå€‹åŸ·è¡Œç·’ï¼Œæ¯å€‹åŸ·è¡Œç·’ç¨ç«‹ã€å®Œæ•´åœ°åŸ·è¡Œä¸€æ¬¡æ¨¡æ“¬é€€ç«æµç¨‹ã€‚
+//       åŸ·è¡Œç·’ä¹‹é–“ç„¡é€šè¨Šï¼Œåƒ…åœ¨æœ€å¾Œæ›´æ–°å…¨åŸŸæœ€ä½³è§£æ™‚éœ€è¦åŒæ­¥ã€‚
 // =============================================================================
 Floorplan ParallelSA::run_multi_start_coarse() {
-    // «Ø¥ß¤@­Ó¥­¦æ°Ï°ì¡A¹Î¶¤¤¤ªº¨C­Ó°õ¦æºü³£·|°õ¦æ³o­Ó°Ï¶ô¤ºªºµ{¦¡½X
+    // å»ºç«‹ä¸€å€‹å¹³è¡Œå€åŸŸï¼Œåœ˜éšŠä¸­çš„æ¯å€‹åŸ·è¡Œç·’éƒ½æœƒåŸ·è¡Œé€™å€‹å€å¡Šå…§çš„ç¨‹å¼ç¢¼
     #pragma omp parallel
     {
-        // ¨C­Ó°õ¦æºü¨p¦³ªº³Ì¨Î¸Ñ¡A¥Î©óÀx¦s¸Ó°õ¦æºü§ä¨ìªº³Ì¦nµ²ªG
+        // æ¯å€‹åŸ·è¡Œç·’ç§æœ‰çš„æœ€ä½³è§£ï¼Œç”¨æ–¼å„²å­˜è©²åŸ·è¡Œç·’æ‰¾åˆ°çš„æœ€å¥½çµæœ
         Floorplan best_fp_this_thread;
         best_fp_this_thread.cost = 1e18;
 
-        // ÃöÁä¡G¬°¨C­Ó°õ¦æºü«Ø¥ß¤@­Ó¿W¥ßªº¶Ã¼Æ²£¥Í¾¹¡A¥H½T«O°õ¦æºü¦w¥ş¨ÃÁ×§K®Ä¯à²~ÀV
+        // é—œéµï¼šç‚ºæ¯å€‹åŸ·è¡Œç·’å»ºç«‹ä¸€å€‹ç¨ç«‹çš„äº‚æ•¸ç”¢ç”Ÿå™¨ï¼Œä»¥ç¢ºä¿åŸ·è¡Œç·’å®‰å…¨ä¸¦é¿å…æ•ˆèƒ½ç“¶é ¸
         std::mt19937 rng(std::chrono::high_resolution_clock::now().time_since_epoch().count() + omp_get_thread_num());
 
-        // ¥u­nÁÙ¦b®É¶¡­­¨î¤º¡A¨C­Ó°õ¦æºü´N¤£Â_¦a±q·sªºÀH¾÷ªì©l¸Ñ¶}©l¶] SA
+        // åªè¦é‚„åœ¨æ™‚é–“é™åˆ¶å…§ï¼Œæ¯å€‹åŸ·è¡Œç·’å°±ä¸æ–·åœ°å¾æ–°çš„éš¨æ©Ÿåˆå§‹è§£é–‹å§‹è·‘ SA
         while (std::chrono::high_resolution_clock::now() - start_time < time_limit) {
+            #pragma omp atomic
+            ++sa_runs;
             Floorplan current_fp = base_fp;
             current_fp.initial_tree(rng);
             current_fp.pack();
@@ -82,21 +87,21 @@ Floorplan ParallelSA::run_multi_start_coarse() {
             
             Floorplan best_in_run = current_fp;
             
-            // [­×§ï] ¨Ï¥Î¶Ç¤Jªº¶W°Ñ¼Æ
+            // [ä¿®æ”¹] ä½¿ç”¨å‚³å…¥çš„è¶…åƒæ•¸
             double T = sa_params.T_start;
             int steps_per_temp = sa_params.steps_per_temp_factor * base_fp.blocks.size();
             
-            // ³æ¤@ SA ¬yµ{ªº¤º³¡°j°é
+            // å–®ä¸€ SA æµç¨‹çš„å…§éƒ¨è¿´åœˆ
             while (T > sa_params.T_min && std::chrono::high_resolution_clock::now() - start_time < time_limit) {
                 for (int i = 0; i < steps_per_temp; ++i) {
-                    // SA move ¹Á¸Õ¦¸¼Æ²Î­p
+                    // SA move å˜—è©¦æ¬¡æ•¸çµ±è¨ˆ
                     ++moves_total;
                     Floorplan next_fp = current_fp;
                     next_fp.perturb(rng);
                     next_fp.pack();
                     next_fp.calculate_cost();
                     double delta = next_fp.cost - current_fp.cost;
-                    // Metropolis ·Ç«h¡G±µ¨ü§ó¦nªº¸Ñ¡A©Î«ö¾÷²v±µ¨ü¸û®tªº¸Ñ
+                    // Metropolis æº–å‰‡ï¼šæ¥å—æ›´å¥½çš„è§£ï¼Œæˆ–æŒ‰æ©Ÿç‡æ¥å—è¼ƒå·®çš„è§£
                     if (delta < 0 || (exp(-delta / T) > std::uniform_real_distribution<>(0.0, 1.0)(rng))) {
                         ++moves_accepted;
                         current_fp = next_fp;
@@ -105,41 +110,42 @@ Floorplan ParallelSA::run_multi_start_coarse() {
                         }
                     }
                 }
-                T *= sa_params.cooling_rate; // ­°·Å
+                T *= sa_params.cooling_rate; // é™æº«
             }
 
-            // ¦pªG¥»¦¸°õ¦æªºµ²ªG¤ñ¸Ó°õ¦æºü¾ú¥v³Ì¨Îµ²ªG§ó¦n¡A«h§ó·s
+            // å¦‚æœæœ¬æ¬¡åŸ·è¡Œçš„çµæœæ¯”è©²åŸ·è¡Œç·’æ­·å²æœ€ä½³çµæœæ›´å¥½ï¼Œå‰‡æ›´æ–°
             if (best_in_run.cost < best_fp_this_thread.cost) {
                 best_fp_this_thread = best_in_run;
             }
         }
         
-        // ÃöÁä¡G¨Ï¥ÎÁ{¬É°Ï (critical section) ¨Ó¦w¥ş¦a§ó·s¦@¨Éªº¥ş°ì³Ì¨Î¸Ñ
-        // ³o¥i¥H¨¾¤î¦h­Ó°õ¦æºü¦P®É¼g¤J global_best_fp¡A³y¦¨Ävª§±ø¥ó
+        // é—œéµï¼šä½¿ç”¨è‡¨ç•Œå€ (critical section) ä¾†å®‰å…¨åœ°æ›´æ–°å…±äº«çš„å…¨åŸŸæœ€ä½³è§£
+        // é€™å¯ä»¥é˜²æ­¢å¤šå€‹åŸ·è¡Œç·’åŒæ™‚å¯«å…¥ global_best_fpï¼Œé€ æˆç«¶çˆ­æ¢ä»¶
         #pragma omp critical
         {
             if (best_fp_this_thread.cost < global_best_fp.cost) {
                 global_best_fp = best_fp_this_thread;
                 log_new_best(global_best_fp.cost);
-                std::cout << "°õ¦æºü " << omp_get_thread_num() 
-                          << " §ä¨ì·sªº¥ş°ì³Ì¨Î¦¨¥»: " << global_best_fp.cost << std::endl;
+                std::cout << "åŸ·è¡Œç·’ " << omp_get_thread_num() 
+                          << " æ‰¾åˆ°æ–°çš„å…¨åŸŸæœ€ä½³æˆæœ¬: " << global_best_fp.cost << std::endl;
             }
         }
-    } // -- OMP ¥­¦æ°Ï°ìµ²§ô --
+    } // -- OMP å¹³è¡Œå€åŸŸçµæŸ --
     return global_best_fp;
 }
 
 // =============================================================================
-// ¤èªk¤G¡G¥­¦æ¦^¤õ / ½Æ¥»¥æ´« (¤¤²É«× Interacting Parallel Searches)
-// ´y­z¡G±Ò°Ê N ­Ó°õ¦æºü¡A¨C­Ó°õ¦æºü¡]½Æ¥»¡^¦b¤£¦Pªº©T©w·Å«×¤U¶i¦æ SA¡C
-//       °õ¦æºü¤§¶¡·|©w´Á¦P¨B¡A¨Ã¹Á¸Õ¥æ´«©¼¦¹ªºª¬ºA¡A¥HÀ°§U¸õ¥X§½³¡³Ì¨Î¸Ñ¡C
+// æ–¹æ³•äºŒï¼šå¹³è¡Œå›ç« / è¤‡æœ¬äº¤æ› (ä¸­ç²’åº¦ Interacting Parallel Searches)
+// æè¿°ï¼šå•Ÿå‹• N å€‹åŸ·è¡Œç·’ï¼Œæ¯å€‹åŸ·è¡Œç·’ï¼ˆè¤‡æœ¬ï¼‰åœ¨ä¸åŒçš„å›ºå®šæº«åº¦ä¸‹é€²è¡Œ SAã€‚
+//       åŸ·è¡Œç·’ä¹‹é–“æœƒå®šæœŸåŒæ­¥ï¼Œä¸¦å˜—è©¦äº¤æ›å½¼æ­¤çš„ç‹€æ…‹ï¼Œä»¥å¹«åŠ©è·³å‡ºå±€éƒ¨æœ€ä½³è§£ã€‚
 // =============================================================================
 Floorplan ParallelSA::run_parallel_tempering_medium() {
     int num_threads = omp_get_max_threads();
+    sa_runs = num_threads;
     std::vector<Floorplan> replicas(num_threads, base_fp);
     std::vector<double> temperatures(num_threads);
 
-    // ³]©w·Å«×¤À§G¡G±q³Ì°ª·Å¨ì³Ì§C·Å¡A§e´X¦ó¯Å¼Æ¤À§G
+    // è¨­å®šæº«åº¦åˆ†ä½ˆï¼šå¾æœ€é«˜æº«åˆ°æœ€ä½æº«ï¼Œå‘ˆå¹¾ä½•ç´šæ•¸åˆ†ä½ˆ
     double T_max = sa_params.T_start, T_min = sa_params.T_min;
     if (num_threads > 1) {
         double alpha = pow(T_min / T_max, 1.0 / (num_threads - 1));
@@ -150,7 +156,7 @@ Floorplan ParallelSA::run_parallel_tempering_medium() {
         temperatures[0] = T_max;
     }
 
-    // ¥­¦æ¦aªì©l¤Æ¨C­Ó½Æ¥»ªºªì©l¸Ñ
+    // å¹³è¡Œåœ°åˆå§‹åŒ–æ¯å€‹è¤‡æœ¬çš„åˆå§‹è§£
     #pragma omp parallel for
     for (int i = 0; i < num_threads; ++i) {
         std::mt19937 seeder_rng(start_time.time_since_epoch().count() + i);
@@ -159,11 +165,11 @@ Floorplan ParallelSA::run_parallel_tempering_medium() {
         replicas[i].calculate_cost();
     }
     
-    // §ä¨ìªì©lªº¥ş°ì³Ì¨Î¸Ñ
+    // æ‰¾åˆ°åˆå§‹çš„å…¨åŸŸæœ€ä½³è§£
     global_best_fp = *std::min_element(replicas.begin(), replicas.end(), [](const auto& a, const auto& b){ return a.cost < b.cost; });
     log_new_best(global_best_fp.cost);
 
-    // [­×§ï] ¨C¹j¦h¤Ö¨B¶i¦æ¤@¦¸¥æ´«¡A¤]¥Ñ°Ñ¼Æ±±¨î
+    // [ä¿®æ”¹] æ¯éš”å¤šå°‘æ­¥é€²è¡Œä¸€æ¬¡äº¤æ›ï¼Œä¹Ÿç”±åƒæ•¸æ§åˆ¶
     int steps_per_swap = sa_params.steps_per_temp_factor * base_fp.blocks.size();
     if (steps_per_swap < 1) steps_per_swap = 1;
 
@@ -175,7 +181,7 @@ Floorplan ParallelSA::run_parallel_tempering_medium() {
         std::mt19937 rng(start_time.time_since_epoch().count() + tid);
 
         while (std::chrono::high_resolution_clock::now() - start_time < time_limit) {
-            // ¨BÆJ 1¡G¨C­Ó°õ¦æºü¦b¦Û¤vªº·Å«×¤U¡A¿W¥ß¶i¦æ SA ­pºâ
+            // æ­¥é©Ÿ 1ï¼šæ¯å€‹åŸ·è¡Œç·’åœ¨è‡ªå·±çš„æº«åº¦ä¸‹ï¼Œç¨ç«‹é€²è¡Œ SA è¨ˆç®—
             for (int i = 0; i < steps_per_swap; ++i) {
                 ++moves_total;
                 Floorplan next_fp = replicas[tid];
@@ -189,17 +195,17 @@ Floorplan ParallelSA::run_parallel_tempering_medium() {
                 }
             }
 
-            // ¨BÆJ 2¡G²Ä¤@­Ó¦P¨BÂI («Ì»Ù)¡C©Ò¦³°õ¦æºü¥²¶·¦b¦¹µ¥«İ¡Aª½¨ì¤j®a³£§¹¦¨­pºâ
+            // æ­¥é©Ÿ 2ï¼šç¬¬ä¸€å€‹åŒæ­¥é» (å±éšœ)ã€‚æ‰€æœ‰åŸ·è¡Œç·’å¿…é ˆåœ¨æ­¤ç­‰å¾…ï¼Œç›´åˆ°å¤§å®¶éƒ½å®Œæˆè¨ˆç®—
             #pragma omp barrier
 
-            // ¨BÆJ 3¡G¥æ´«¶¥¬q¡C¥uÅı¥D°õ¦æºü (master thread) °õ¦æ¡AÁ×§KÄvª§
+            // æ­¥é©Ÿ 3ï¼šäº¤æ›éšæ®µã€‚åªè®“ä¸»åŸ·è¡Œç·’ (master thread) åŸ·è¡Œï¼Œé¿å…ç«¶çˆ­
             #pragma omp master
             {
-                // ¹Á¸Õ¥æ´«¬Û¾F·Å«×ªº½Æ¥»
+                // å˜—è©¦äº¤æ›ç›¸é„°æº«åº¦çš„è¤‡æœ¬
                 for (int i = 0; i < num_threads - 1; ++i) {
                     double cost1 = replicas[i].cost, cost2 = replicas[i+1].cost;
                     double T1 = temperatures[i], T2 = temperatures[i+1];
-                    // ½Æ¥»¥æ´«ªº¾÷²v¤½¦¡
+                    // è¤‡æœ¬äº¤æ›çš„æ©Ÿç‡å…¬å¼
                     double prob = exp((cost1 - cost2) * (1.0 / T1 - 1.0 / T2));
 
                     if (prob > std::uniform_real_distribution<>(0, 1)(master_rng)) {
@@ -207,30 +213,30 @@ Floorplan ParallelSA::run_parallel_tempering_medium() {
                     }
                 }
                 
-                // §ó·s¥ş°ì³Ì¨Î¸Ñ
+                // æ›´æ–°å…¨åŸŸæœ€ä½³è§£
                 for(const auto& rep : replicas) {
                     if (rep.cost < global_best_fp.cost) {
                         global_best_fp = rep;
                         log_new_best(global_best_fp.cost);
-                        std::cout << "¥­¦æ¦^¤õ§ä¨ì·sªº¥ş°ì³Ì¨Î¦¨¥»: " << global_best_fp.cost << std::endl;
+                        std::cout << "å¹³è¡Œå›ç«æ‰¾åˆ°æ–°çš„å…¨åŸŸæœ€ä½³æˆæœ¬: " << global_best_fp.cost << std::endl;
                     }
                 }
             }
             
-            // ¨BÆJ 4¡G²Ä¤G­Ó¦P¨BÂI¡C½T«O¥D°õ¦æºü§¹¦¨©Ò¦³¥æ´««á¡A¤j®a¦A¤@°_¶i¤J¤U¤@½ü
+            // æ­¥é©Ÿ 4ï¼šç¬¬äºŒå€‹åŒæ­¥é»ã€‚ç¢ºä¿ä¸»åŸ·è¡Œç·’å®Œæˆæ‰€æœ‰äº¤æ›å¾Œï¼Œå¤§å®¶å†ä¸€èµ·é€²å…¥ä¸‹ä¸€è¼ª
             #pragma omp barrier
         }
-    } // -- OMP ¥­¦æ°Ï°ìµ²§ô --
+    } // -- OMP å¹³è¡Œå€åŸŸçµæŸ --
     return global_best_fp;
 }
 
 // =============================================================================
-// ¤èªk¤T¡G¥­¦æ²¾°Ê¥Í¦¨ (²Ó²É«× Parallel Move Generation)
-// ´y­z¡G¦b SA ªº¨C¤@¦¸­¡¥N¤¤¡A¥­¦æ¦a²£¥Í N ­Ó­Ô¿ï¸Ñ¡AµM«á±q¤¤¿ï¾Ü¤@­Ó¡C
-//       ³oºØ¤èªkªº¥­¦æ¶}¾P·¥°ª¡C
+// æ–¹æ³•ä¸‰ï¼šå¹³è¡Œç§»å‹•ç”Ÿæˆ (ç´°ç²’åº¦ Parallel Move Generation)
+// æè¿°ï¼šåœ¨ SA çš„æ¯ä¸€æ¬¡è¿­ä»£ä¸­ï¼Œå¹³è¡Œåœ°ç”¢ç”Ÿ N å€‹å€™é¸è§£ï¼Œç„¶å¾Œå¾ä¸­é¸æ“‡ä¸€å€‹ã€‚
+//       é€™ç¨®æ–¹æ³•çš„å¹³è¡Œé–‹éŠ·æ¥µé«˜ã€‚
 // =============================================================================
 Floorplan ParallelSA::run_parallel_moves_fine() {
-    // ¬°¤F¤½¥­¤ñ¸û¡A¦¹¤èªk¤]¥]»q¦b¤@­Ó¦h°_©lÂIªº°j°é¤¤
+    // ç‚ºäº†å…¬å¹³æ¯”è¼ƒï¼Œæ­¤æ–¹æ³•ä¹ŸåŒ…è£¹åœ¨ä¸€å€‹å¤šèµ·å§‹é»çš„è¿´åœˆä¸­
     #pragma omp parallel
     {
         Floorplan best_fp_this_thread;
@@ -238,6 +244,8 @@ Floorplan ParallelSA::run_parallel_moves_fine() {
         std::mt19937 rng(std::chrono::high_resolution_clock::now().time_since_epoch().count() + omp_get_thread_num());
 
         while (std::chrono::high_resolution_clock::now() - start_time < time_limit) {
+            #pragma omp atomic
+            ++sa_runs;
             Floorplan current_fp = base_fp;
             current_fp.initial_tree(rng);
             current_fp.pack();
@@ -245,37 +253,37 @@ Floorplan ParallelSA::run_parallel_moves_fine() {
             
             Floorplan best_in_run = current_fp;
 
-            // [­×§ï] ¨Ï¥Î¶Ç¤Jªº¶W°Ñ¼Æ
+            // [ä¿®æ”¹] ä½¿ç”¨å‚³å…¥çš„è¶…åƒæ•¸
             double T = sa_params.T_start;
             int steps_per_temp = sa_params.steps_per_temp_factor * base_fp.blocks.size();
-            // ½T«O¨B¼Æ¦Ü¤Ö¬° 1
+            // ç¢ºä¿æ­¥æ•¸è‡³å°‘ç‚º 1
             if (steps_per_temp < 1) steps_per_temp = 1;
             
             int num_threads = omp_get_num_threads();
 
             while (T > sa_params.T_min && std::chrono::high_resolution_clock::now() - start_time < time_limit) {
                 for (int i = 0; i < steps_per_temp; ++i) {
-                    // ²£¥Í N ­Ó­Ô¿ï¸Ñ¡AN = °õ¦æºü¼Æ
+                    // ç”¢ç”Ÿ N å€‹å€™é¸è§£ï¼ŒN = åŸ·è¡Œç·’æ•¸
                     std::vector<Floorplan> candidates(num_threads, current_fp);
                     
-                    // --- ²Ó²É«×¥­¦æ°Ï°ì ---
-                    // ¨Ï¥Î omp for ±N°j°éªº­¡¥N¥ô°È¤À°tµ¹¹Î¶¤¤¤ªº°õ¦æºü
+                    // --- ç´°ç²’åº¦å¹³è¡Œå€åŸŸ ---
+                    // ä½¿ç”¨ omp for å°‡è¿´åœˆçš„è¿­ä»£ä»»å‹™åˆ†é…çµ¦åœ˜éšŠä¸­çš„åŸ·è¡Œç·’
                     #pragma omp for
                     for (int k = 0; k < num_threads; ++k) {
-                        // ¨C­Ó­¡¥N¡]°õ¦æºü¡^³£»İ­n¦Û¤vªº¶Ã¼Æ²£¥Í¾¹
+                        // æ¯å€‹è¿­ä»£ï¼ˆåŸ·è¡Œç·’ï¼‰éƒ½éœ€è¦è‡ªå·±çš„äº‚æ•¸ç”¢ç”Ÿå™¨
                         std::mt19937 local_rng(rng() + k); 
                         candidates[k].perturb(local_rng);
                         candidates[k].pack();
                         candidates[k].calculate_cost();
                     }
-                    // omp for µ²§ô®É¦³¤@­ÓÁô§tªº«Ì»Ù¡A½T«O©Ò¦³°õ¦æºü³£¤w§¹¦¨¤u§@
-                    // --- ²Ó²É«×¥­¦æ°Ï°ìµ²§ô ---
+                    // omp for çµæŸæ™‚æœ‰ä¸€å€‹éš±å«çš„å±éšœï¼Œç¢ºä¿æ‰€æœ‰åŸ·è¡Œç·’éƒ½å·²å®Œæˆå·¥ä½œ
+                    // --- ç´°ç²’åº¦å¹³è¡Œå€åŸŸçµæŸ ---
                     
-                    // ¦^¨ì³æ°õ¦æºü¼Ò¦¡¡A±q©Ò¦³­Ô¿ï¸Ñ¤¤¿ï¥X³Ì¦nªº
+                    // å›åˆ°å–®åŸ·è¡Œç·’æ¨¡å¼ï¼Œå¾æ‰€æœ‰å€™é¸è§£ä¸­é¸å‡ºæœ€å¥½çš„
                     auto best_it = std::min_element(candidates.begin(), candidates.end(), [](const auto& a, const auto& b){ return a.cost < b.cost; });
                     Floorplan best_candidate = *best_it;
 
-                    // ¨Ï¥Î Metropolis ·Ç«h¨Ó¨M©w¬O§_±µ¨ü³o­Ó³Ì¦nªº­Ô¿ï¸Ñ
+                    // ä½¿ç”¨ Metropolis æº–å‰‡ä¾†æ±ºå®šæ˜¯å¦æ¥å—é€™å€‹æœ€å¥½çš„å€™é¸è§£
                     double delta = best_candidate.cost - current_fp.cost;
                     ++moves_total;
                     if (delta < 0 || (exp(-delta / T) > std::uniform_real_distribution<>(0.0, 1.0)(rng))) {
@@ -299,10 +307,10 @@ Floorplan ParallelSA::run_parallel_moves_fine() {
             if (best_fp_this_thread.cost < global_best_fp.cost) {
                 global_best_fp = best_fp_this_thread;
                 log_new_best(global_best_fp.cost);
-                 std::cout << "°õ¦æºü " << omp_get_thread_num() 
-                           << " (²Ó²É«×) §ä¨ì·sªº¥ş°ì³Ì¨Î¦¨¥»: " << global_best_fp.cost << std::endl;
+                 std::cout << "åŸ·è¡Œç·’ " << omp_get_thread_num() 
+                           << " (ç´°ç²’åº¦) æ‰¾åˆ°æ–°çš„å…¨åŸŸæœ€ä½³æˆæœ¬: " << global_best_fp.cost << std::endl;
             }
         }
-    } // -- OMP ¥­¦æ°Ï°ìµ²§ô --
+    } // -- OMP å¹³è¡Œå€åŸŸçµæŸ --
     return global_best_fp;
 }

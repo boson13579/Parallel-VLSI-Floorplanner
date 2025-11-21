@@ -150,6 +150,7 @@ int main(int argc, char* argv[]) {
     // 8. 將 SA 行為統計摘要寫入 log 檔案（而非終端機），方便後續在 Linux 上批次分析
     long long moves_total = sa_runner.get_moves_total();
     long long moves_accepted = sa_runner.get_moves_accepted();
+    long long sa_runs = sa_runner.get_sa_runs();
     double accept_ratio = (moves_total > 0) ? static_cast<double>(moves_accepted) / moves_total : 0.0;
 
     // 建立 summary 檔案路徑（目錄已在前面建立）
@@ -161,11 +162,12 @@ int main(int argc, char* argv[]) {
         else if (strategy == ParallelizationStrategy::ParallelTempering_Medium) summary_file << "ParallelTempering_Medium";
         else summary_file << "ParallelMoves_Fine";
 
-        summary_file << ", threads=" << omp_get_max_threads()
+    summary_file << ", threads=" << omp_get_max_threads()
                      << ", wall_time_s=" << wall_seconds
                      << ", moves_total=" << moves_total
                      << ", moves_accepted=" << moves_accepted
-                     << ", accept_ratio=" << accept_ratio
+             << ", accept_ratio=" << accept_ratio
+             << ", sa_runs=" << sa_runs
                      << '\n';
     }
          // 8. 將 SA 行為統計 + layout metrics 結果寫入 CSV
@@ -175,14 +177,15 @@ int main(int argc, char* argv[]) {
         if (metrics_file.is_open()) {
             metrics_file << "mode,strategy,testcase,threads,run_start,wall_time_s,"
                           << "best_cost,chip_area,chip_width,chip_height,inl,"
-                          << "moves_total,moves_accepted,accept_ratio\n";
+                          << "moves_total,moves_accepted,accept_ratio,sa_runs\n";
 
             metrics_file << "parallel," << strategy_str << "," << testcase_name << "," << omp_get_max_threads() << ","
                           << run_time_str << "," << wall_seconds << ","
                           << final_best_fp.cost << "," << final_best_fp.chip_area << ","
                           << final_best_fp.chip_width << "," << final_best_fp.chip_height << ","
                           << final_best_fp.inl << ","
-                          << moves_total << "," << moves_accepted << "," << accept_ratio << "\n";
+                          << moves_total << "," << moves_accepted << "," << accept_ratio << ","
+                          << sa_runs << "\n";
         }
 
     return 0;

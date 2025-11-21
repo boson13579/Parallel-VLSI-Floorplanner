@@ -1,35 +1,67 @@
 #!/usr/bin/env bash
 
-# Simple batch runner for Linux to test different thread counts and strategies.
+# Run baseline + 3 parallel strategies with a single command.
 # Usage (from project root):
-#   bash scripts/run_experiments.sh testcase/case1.block results
+#   bash scripts/run_experiments.sh <testcase> <time_limit_sec> <num_threads> [output_dir]
 
 set -euo pipefail
 
-INPUT=${1:-testcase/case1.block}
-OUTDIR=${2:-results}
+if [ $# -lt 3 ]; then
+  echo "Usage: $0 <testcase> <time_limit_sec> <num_threads> [output_dir]" >&2
+  exit 1
+fi
+
+TESTCASE=$1
+TIME_LIMIT=$2
+NUM_THREADS=$3
+OUTDIR=${4:-runs}
+
+SCRIPT_DIR=$(cd -- "$(dirname "$0")" && pwd)
+ROOT_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
+cd "$ROOT_DIR"
 
 mkdir -p "$OUTDIR"
+OUTDIR=$(cd "$OUTDIR" && pwd)
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+SESSION_DIR="$OUTDIR/run_${TIMESTAMP}"
+mkdir -p "$SESSION_DIR"
 
-# NOTE: 目前策略仍是在 src/main.cpp 裡用 enum 切換，
-# 這裡假設你在執行這個腳本前，已經編譯好對應策略的 binary。
-# 我們在檔名上標記策略，方便之後手動對應。
+log_msg() {
+  local msg="$1"
+  echo "[$(date '+%F %T')] $msg" | tee -a "$SESSION_DIR/run.log"
+}
 
-THREADS=(1 2 4 8)
+run_parallel_strategy() {
+  local strategy="$1"
+  local label="$2"
+  log_msg "Building parallel strategy=$strategy (TIME_LIMIT=${TIME_LIMIT}s)"
+  make clean >/dev/null 2>&1 || true
+  make TIME_LIMIT="$TIME_LIMIT" STRATEGY="$strategy" >/dev/null
 
-for p in "${THREADS[@]}"; do
-  export OMP_NUM_THREADS="$p"
-  echo "Running (threads=$p)" | tee -a "$OUTDIR/run.log"
+  local outfile="$SESSION_DIR/output_${label}.block"
+  local logfile="$SESSION_DIR/${label}.log"
+  log_msg "Running $label with OMP_NUM_THREADS=$NUM_THREADS"
+  OMP_NUM_THREADS="$NUM_THREADS" ./floorplanner -i "$TESTCASE" -o "$outfile" \
+    2>&1 | tee "$logfile"
+}
 
-  # 這裡假設 floorplanner 的 main 內部會印出 [SA Summary] 那一行
-  OUTBLOCK="$OUTDIR/output_p${p}.block"
-  LOGFILE="$OUTDIR/run_p${p}.log"
+run_baseline() {
+  log_msg "Building baseline (TIME_LIMIT=${TIME_LIMIT}s)"
+  pushd refsrc >/dev/null
+  make clean >/dev/null 2>&1 || true
+  make TIME_LIMIT="$TIME_LIMIT" >/dev/null
+  popd >/dev/null
 
-  ./floorplanner -i "$INPUT" -o "$OUTBLOCK" 2>&1 | tee "$LOGFILE"
+  local outfile="$SESSION_DIR/output_baseline.block"
+  local logfile="$SESSION_DIR/baseline.log"
+  log_msg "Running baseline"
+  ./refsrc/floorplanner -i "$TESTCASE" -o "$outfile" 2>&1 | tee "$logfile"
+}
 
-  # 保存這次的收斂 log，命名包含 threads 數
-  if [ -f convergence_log.csv ]; then
-    cp convergence_log.csv "$OUTDIR/convergence_p${p}.csv"
-  fi
+log_msg "Testcase=$TESTCASE | TimeLimit=${TIME_LIMIT}s | Threads=$NUM_THREADS"
+run_baseline
+run_parallel_strategy "MultiStart_Coarse" "parallel_multistart"
+run_parallel_strategy "ParallelTempering_Medium" "parallel_tempering"
+run_parallel_strategy "ParallelMoves_Fine" "parallel_moves"
 
-done
+log_msg "Runs finished. Check $SESSION_DIR and logs/ for CSV outputs."
