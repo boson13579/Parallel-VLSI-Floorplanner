@@ -20,6 +20,25 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#if defined(_WIN32)
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#endif
+
+#ifndef BASELINE_TIME_LIMIT_SECONDS
+#define BASELINE_TIME_LIMIT_SECONDS 60
+#endif
+
+namespace {
+void ensure_log_dir(const std::string& dir) {
+#if defined(_WIN32)
+    _mkdir(dir.c_str());
+#else
+    ::mkdir(dir.c_str(), 0755);
+#endif
+}
+}
 
 using namespace std;
 
@@ -564,6 +583,7 @@ Floorplan run_simulated_annealing(const Floorplan& base_fp,
     // 簡單的收斂日誌（單執行緒 baseline 版），格式與平行版相容
     // 檔名包含 testcase 與時間戳，放在 logs/ 底下
     const string log_dir = "logs";
+    ensure_log_dir(log_dir);
     string testcase_name = testcase_name_for_log;
     auto now_sys = chrono::system_clock::now();
     time_t tt0 = chrono::system_clock::to_time_t(now_sys);
@@ -723,7 +743,7 @@ int main(int argc, char* argv[]) {
     Floorplan base_fp;
     base_fp.read_blocks(input_file);
 
-    const auto time_limit = chrono::seconds(60);  // Set time limit (e.g., 595s for a 10-min limit)
+    const auto time_limit = chrono::seconds(BASELINE_TIME_LIMIT_SECONDS);
 
     // 解析測資檔名（去掉路徑），傳給 SA 做 metrics 檔名用
     string testcase_name = input_file;

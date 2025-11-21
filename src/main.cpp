@@ -3,6 +3,40 @@
 #include <iostream>
 #include <string>
 #include <omp.h> // 引入 OpenMP 標頭檔以取得執行緒資訊
+#if defined(_WIN32)
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#endif
+
+#ifndef DEFAULT_TIME_LIMIT_SECONDS
+#define DEFAULT_TIME_LIMIT_SECONDS 595
+#endif
+
+#ifndef DEFAULT_STRATEGY_NAME
+#define DEFAULT_STRATEGY_NAME "MultiStart_Coarse"
+#endif
+
+namespace {
+
+ParallelizationStrategy strategy_from_string(const std::string& name) {
+    if (name == "MultiStart_Coarse") return ParallelizationStrategy::MultiStart_Coarse;
+    if (name == "ParallelTempering_Medium") return ParallelizationStrategy::ParallelTempering_Medium;
+    if (name == "ParallelMoves_Fine") return ParallelizationStrategy::ParallelMoves_Fine;
+    std::cerr << "[警告] 未知策略 '" << name << "'，改用 MultiStart_Coarse\n";
+    return ParallelizationStrategy::MultiStart_Coarse;
+}
+
+std::string strategy_to_string(ParallelizationStrategy strategy) {
+    switch (strategy) {
+        case ParallelizationStrategy::MultiStart_Coarse: return "MultiStart_Coarse";
+        case ParallelizationStrategy::ParallelTempering_Medium: return "ParallelTempering_Medium";
+        case ParallelizationStrategy::ParallelMoves_Fine: return "ParallelMoves_Fine";
+    }
+    return "MultiStart_Coarse";
+}
+
+} // namespace
 
 // 函式宣告
 void parse_arguments(int argc, char* argv[], std::string& input_file, std::string& output_file);
@@ -24,17 +58,16 @@ int main(int argc, char* argv[]) {
     Floorplan base_fp;
     base_fp.read_blocks(input_file);
 
-    // 3. 設定執行時間限制
-    const auto time_limit = std::chrono::seconds(180); // 設定接近 10 分鐘的時間限制
+    // 3. 設定執行時間限制（可由 Makefile 的 DEFAULT_TIME_LIMIT_SECONDS 控制）
+    const auto time_limit = std::chrono::seconds(DEFAULT_TIME_LIMIT_SECONDS);
 
     // =======================================================================
     // --- 策略與超參數設定 ---
     // 這是您專案的核心控制點。透過修改這個變數，您可以輕鬆切換
     // 並測試不同的平行化方法與其對應的超參數。
     // =======================================================================
-    ParallelizationStrategy strategy = ParallelizationStrategy::MultiStart_Coarse;
-    // ParallelizationStrategy strategy = ParallelizationStrategy::ParallelTempering_Medium;
-    // ParallelizationStrategy strategy = ParallelizationStrategy::ParallelMoves_Fine;
+    const std::string default_strategy_name = DEFAULT_STRATEGY_NAME;
+    ParallelizationStrategy strategy = strategy_from_string(default_strategy_name);
     
     SA_Hyperparameters params;
     if (strategy == ParallelizationStrategy::MultiStart_Coarse) {
@@ -66,12 +99,14 @@ int main(int argc, char* argv[]) {
     std::string run_time_str(time_buf);
 
     // 6. 策略字串表示（給 log 檔名與 metrics 用）
-    std::string strategy_str;
-    if (strategy == ParallelizationStrategy::MultiStart_Coarse) strategy_str = "MultiStart_Coarse";
-    else if (strategy == ParallelizationStrategy::ParallelTempering_Medium) strategy_str = "ParallelTempering_Medium";
-    else strategy_str = "ParallelMoves_Fine";
+    std::string strategy_str = strategy_to_string(strategy);
 
     const std::string log_dir = "logs";
+#if defined(_WIN32)
+    _mkdir(log_dir.c_str());
+#else
+    ::mkdir(log_dir.c_str(), 0755);
+#endif
 
     std::string log_filename = log_dir + "/convergence_parallel_" + strategy_str + "_" + testcase_name + "_" + run_time_str + ".csv";
 

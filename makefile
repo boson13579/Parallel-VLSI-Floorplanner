@@ -7,6 +7,10 @@ CXX := g++
 CXXFLAGS := -std=c++17 -O3 -Wall -fopenmp -MMD -MP
 LDFLAGS := -fopenmp
 
+# --- Configurable Defaults ---
+TIME_LIMIT ?= 595
+STRATEGY ?= MultiStart_Coarse
+
 # --- Project Structure ---
 EXEC := floorplanner
 SRCDIR := src
@@ -14,6 +18,8 @@ INCDIR := inc
 OBJDIR := obj
 
 CXXFLAGS += -I$(INCDIR)
+CXXFLAGS += -DDEFAULT_TIME_LIMIT_SECONDS=$(TIME_LIMIT)
+CXXFLAGS += -DDEFAULT_STRATEGY_NAME=\"$(STRATEGY)\"
 
 # --- Automatic File Discovery ---
 SOURCES := $(wildcard $(SRCDIR)/*.cpp)
