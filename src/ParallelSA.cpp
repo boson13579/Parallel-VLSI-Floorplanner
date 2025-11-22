@@ -107,6 +107,18 @@ Floorplan ParallelSA::run_multi_start_coarse() {
                         current_fp = next_fp;
                         if (current_fp.cost < best_in_run.cost) {
                             best_in_run = current_fp;
+                            // [修改] 即時更新全域最佳解，以便記錄收斂過程
+                            if (best_in_run.cost < global_best_fp.cost) {
+                                #pragma omp critical
+                                {
+                                    if (best_in_run.cost < global_best_fp.cost) {
+                                        global_best_fp = best_in_run;
+                                        log_new_best(global_best_fp.cost);
+                                        std::cout << "執行緒 " << omp_get_thread_num() 
+                                                  << " 找到新的全域最佳成本: " << global_best_fp.cost << std::endl;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -291,6 +303,18 @@ Floorplan ParallelSA::run_parallel_moves_fine() {
                         current_fp = best_candidate;
                         if (current_fp.cost < best_in_run.cost) {
                             best_in_run = current_fp;
+                            // [修改] 即時更新全域最佳解
+                            if (best_in_run.cost < global_best_fp.cost) {
+                                #pragma omp critical
+                                {
+                                    if (best_in_run.cost < global_best_fp.cost) {
+                                        global_best_fp = best_in_run;
+                                        log_new_best(global_best_fp.cost);
+                                        std::cout << "執行緒 " << omp_get_thread_num() 
+                                                  << " (細粒度) 找到新的全域最佳成本: " << global_best_fp.cost << std::endl;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
