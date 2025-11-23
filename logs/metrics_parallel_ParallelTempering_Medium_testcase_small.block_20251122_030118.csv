@@ -1,0 +1,2 @@
+mode,strategy,testcase,threads,run_start,wall_time_s,best_cost,chip_area,chip_width,chip_height,inl,moves_total,moves_accepted,accept_ratio,sa_runs
+parallel,ParallelTempering_Medium,testcase_small.block,8,20251122_030118,65.0001,699.446,864.021,35.18,24.56,41.1492,73321048,43994795,0.60003,8
