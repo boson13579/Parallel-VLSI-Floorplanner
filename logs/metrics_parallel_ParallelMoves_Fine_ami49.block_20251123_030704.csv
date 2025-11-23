@@ -1,0 +1,2 @@
+mode,strategy,testcase,threads,run_start,wall_time_s,best_cost,chip_area,chip_width,chip_height,inl,moves_total,moves_accepted,accept_ratio,sa_runs
+parallel,ParallelMoves_Fine,ami49.block,32,20251123_030704,7200,8.50662e+07,1.03128e+08,10738,9604,1.28199e+07,405489644,198414158,0.48932,7296
