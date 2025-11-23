@@ -7,3 +7,9 @@
 [SA Summary] strategy=MultiStart_Coarse, threads=32, wall_time_s=7200, moves_total=10307400462, moves_accepted=4301922956, accept_ratio=0.417363, sa_runs=209710
 [SA Summary] strategy=ParallelTempering_Medium, threads=32, wall_time_s=7200, moves_total=9173441885, moves_accepted=3887980124, accept_ratio=0.42383, sa_runs=32
 [SA Summary] strategy=ParallelMoves_Fine, threads=32, wall_time_s=7200, moves_total=780086024, moves_accepted=496264031, accept_ratio=0.636166, sa_runs=22464
+[SA Summary] strategy=MultiStart_Coarse, threads=32, wall_time_s=7200, moves_total=6808501059, moves_accepted=1648304070, accept_ratio=0.242095, sa_runs=125914
+[SA Summary] strategy=MultiStart_Coarse, threads=32, wall_time_s=7200, moves_total=4508528824, moves_accepted=885676075, accept_ratio=0.196445, sa_runs=56641
+[SA Summary] strategy=ParallelTempering_Medium, threads=32, wall_time_s=7200, moves_total=6288096358, moves_accepted=1529674501, accept_ratio=0.243265, sa_runs=32
+[SA Summary] strategy=ParallelTempering_Medium, threads=32, wall_time_s=7200, moves_total=4286521324, moves_accepted=833130740, accept_ratio=0.194361, sa_runs=32
+[SA Summary] strategy=ParallelMoves_Fine, threads=32, wall_time_s=7200, moves_total=588656929, moves_accepted=284088610, accept_ratio=0.482605, sa_runs=15008
+[SA Summary] strategy=ParallelMoves_Fine, threads=32, wall_time_s=7200, moves_total=405489644, moves_accepted=198414158, accept_ratio=0.48932, sa_runs=7296
