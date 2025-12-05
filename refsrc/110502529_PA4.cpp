@@ -603,7 +603,7 @@ Floorplan run_simulated_annealing(const Floorplan& base_fp,
     const int N = base_fp.blocks.size();
     double cooling_rate;
     int steps_per_temp;
-    if (N < 50) {
+    if (true) {
         cooling_rate = 0.995;
         steps_per_temp = 5 * N;
     } else if (N < 101) {

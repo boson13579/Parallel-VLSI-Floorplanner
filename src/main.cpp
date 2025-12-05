@@ -72,12 +72,12 @@ int main(int argc, char* argv[]) {
     SA_Hyperparameters params;
     if (strategy == ParallelizationStrategy::MultiStart_Coarse) {
         // 策略一：標準的獨立搜尋，使用一個通用的、穩健的降溫策略。
-        params = {1e5, 1e-2, 0.98, 2.0};
+        params = {1e5, 1e-2, 0.995, 5.0};
     } 
     else if (strategy == ParallelizationStrategy::ParallelTempering_Medium) {
         // 策略二：演算法核心是溫度交換，傳統的 SA 參數影響較小。
         // T_start/T_min 用於設定溫度區間，steps_factor 用於控制交換頻率。
-        params = {1e5, 1e-2, 0.98, 2.0};
+        params = {1e5, 1e-2, 0.995, 5.0};
     } 
     else { // ParallelMoves_Fine
         // 策略三：每步決策更「貪婪」，需要非常慢的降溫來避免陷入局部最佳解。
